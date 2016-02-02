@@ -1,0 +1,641 @@
+import pygame, sys
+import random
+from start_menu import main as startmenu
+import pygame.font
+
+### Global Variables
+WIDTH = 31  # this is the width of an individual square
+HEIGHT = 31 # this is the height of an individual square
+
+# RGB Color definitions
+black = (0, 0, 0)
+grey = (100, 100, 100)
+white = (255, 255, 255)
+green = (0, 255, 0)
+red   = (255, 0, 0)
+blue  = (0, 0, 255)
+
+def get_row_top_loc(rowNum, height = HEIGHT):
+    """
+    Returns the location of the top pixel in a square in
+    row rowNum, given the row height.
+    """
+    return (rowNum*height)
+
+def get_col_left_loc(colNum, width = WIDTH):
+    """
+    Returns the location of the leftmost pixel in a square in
+    column colNum, given the column width.
+    """
+    return (colNum*width)
+
+def update_text(screen, message, size = 10):
+    """
+    Used to display the text on the right-hand part of the screen.
+    You don't need to code anything, but you may want to read and
+    understand this part.
+    """
+    textSize = 20
+    font = pygame.font.Font(None, 20)
+    textY = 0 + textSize
+    text = font.render(message, True, white, black)
+    textRect = text.get_rect()
+    textRect.centerx = (size + 1) * WIDTH + 10
+    textRect.centery = textY
+    screen.blit(text, textRect)
+
+def new_game():
+    """
+    Sets up all necessary components to start a new game
+    """
+    pygame.init() # initialize all imported pygame modules
+
+    option = startmenu(pygame.display.set_mode([300,300]))
+    if option == 1:
+        size = 9
+    elif option == 2:
+        size = 17
+    elif option == 3:
+        size = 27
+
+    window_size = [size * WIDTH, size * HEIGHT] # width, height
+    screen = pygame.display.set_mode(window_size)
+
+    pygame.display.set_caption("Maze Chase") # caption sets title of Window 
+
+    board = Board(size)
+
+    moveCount = 0
+
+    clock = pygame.time.Clock()
+
+    
+    main_loop(screen, board, moveCount, clock, False, False)
+
+
+# Main program Loop: (called by new_game)
+def main_loop(screen, board, moveCount, clock, stop, pause):
+    board.squares.draw(screen) # draw Sprites (Squares)
+    board.theGoal.draw(screen) # draw Goal Sprite
+    board.thePlayer.draw(screen) # draw Player Sprite
+    board.theAI.draw(screen)
+    pygame.display.flip() # update screen
+    winner = 0 #if winner = 1, player wins, if winner =2 AI wins
+
+    while stop == False:        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT: #user clicks close
+                stop = True
+                pygame.quit()
+            elif event.type==pygame.KEYDOWN:
+                if event.key==pygame.K_p:
+                    if pause:
+                        pause = False
+                    else:
+                        pause = True
+
+            if stop == False and pause == False: 
+                board.squares.draw(screen) # draw Sprites (Squares)
+                board.theGoal.draw(screen)  #draw whats in the center location here
+                board.thePlayer.draw(screen) # draw Player Sprite
+                board.theAI.draw(screen)
+
+            
+                pygame.display.flip() # update screen
+                clock.tick(10)
+
+                #if arrows are pressed & if player can move in the direction arrow points, move player there
+                if event.type == pygame.KEYDOWN:
+                    current_loc = board.player.get_loc()
+                    if event.key == pygame.K_LEFT:
+                        if board.get_square(current_loc[0]-1,current_loc[1]).get_square_color() is not black:
+                            board.player.move_left()
+                            print "Move Left"
+                        else:
+                            print "Can't Move"
+
+                    if event.key == pygame.K_RIGHT:
+                        if board.get_square(current_loc[0]+1,current_loc[1]).get_square_color() is not black:
+                            board.player.move_right()
+                            print "Move Right"
+                        else:
+                            print "Can't Move"
+
+                    if event.key == pygame.K_UP:
+                        if board.get_square(current_loc[0],current_loc[1]-1).get_square_color() is not black:
+                            board.player.move_up()
+                            print "Move Up"
+                        else:
+                            print "Can't Move"
+
+                    if event.key == pygame.K_DOWN:
+                        if board.get_square(current_loc[0],current_loc[1]+1).get_square_color() is not black:
+                            board.player.move_down()
+                            print "Move Down"
+                        else:
+                            print "Can't Move"
+
+        current_loc = board.player.get_loc()
+
+        #instead of this code for just one ai, i made it a loop to run through the board's list of ais
+        #if the board only has one ai, the code is only executed once, etc.
+        i = 0
+
+        while i < len(board.ais): 
+            random_dir = random.randint(0,4)
+            a_loc = board.ais[i].get_loc()
+            if random_dir == 0:
+                if board.get_square(a_loc[0],a_loc[1]-1).get_square_color() is not black:
+                    board.ais[i].move_up()
+            elif random_dir == 1:
+                if board.get_square(a_loc[0]+1,a_loc[1]).get_square_color() is not black:
+                    board.ais[i].move_right()
+            elif random_dir == 2:
+                if board.get_square(a_loc[0],a_loc[1]+1).get_square_color() is not black:
+                    board.ais[i].move_down()
+            elif random_dir == 3:
+                if board.get_square(a_loc[0]-1,a_loc[1]).get_square_color() is not black:
+                    board.ais[i].move_left()
+            
+            if board.ais[i].line_of_sight(current_loc):
+                #print 'player loses!'
+                winner = 2
+                stop = True
+            i += 1
+        
+            
+        if (current_loc == board.goal.get_loc()):
+            #print 'player wins!'
+            winner = 1
+            stop = True
+            
+
+        #moving computer player closer to the player(?)
+
+        
+        board.squares.draw(screen) # draw Sprites (Squares) - they should cover up the player's previous position
+        board.theGoal.draw(screen)  #draw whats in the center location here
+        board.thePlayer.draw(screen) # draw PLayer Sprite at new location
+        board.theAI.draw(screen)
+        
+        pygame.display.flip() # update screen
+        clock.tick(5)
+        
+        # ------------------------
+
+
+    if stop == True:
+        pygame.quit() # closes things, keeps idle from freezing
+        pygame.init() 
+        font1 = pygame.font.Font(None, 36)
+        for i in range(30):
+            end_screen = pygame.display.set_mode((300,50))
+            end_screen.fill(white)
+            if winner == 1:
+                text = font1.render("You Win!", 1, (10, 10, 10))
+            if winner == 2:
+                text = font1.render("You Lose!", 1, (10, 10, 10))
+            textpos = text.get_rect()
+            textpos.centerx = end_screen.get_rect().centerx
+            end_screen.blit(text, textpos)
+            
+            pygame.display.flip()
+            clock.tick(10)
+        new_game()
+        stop = False
+       
+    
+
+class Square(pygame.sprite.Sprite):
+    def __init__(self, col, row, color):
+        pygame.sprite.Sprite.__init__(self)
+        self.row = row
+        self.col = col
+        self.image = pygame.Surface([WIDTH, HEIGHT])
+        self.image.fill(color)
+        self.rect = self.image.get_rect() # gets a rect object with width and height specified above
+                                            # a rect is a pygame object for handling rectangles
+        self.rect.x = get_col_left_loc(col)
+        self.rect.y = get_row_top_loc(row)
+        self.color = color   
+
+    def get_square_color(self):
+        return self.color
+    def get_rect_from_square(self):
+        """
+        Returns the rect object that belongs to this Square
+        """
+        return self.rect
+
+   
+class Board:
+    def __init__(self, size):
+
+        self.size = size
+        
+        #---Initializes Squares (the "Board")---#
+        
+        self.squares = pygame.sprite.RenderPlain()
+        self.boardSquares = {}
+        self.ais = [] #list to keep track of multiple ais
+
+        if self.size == 9:
+            #Initialize
+            self.player = Player(self,1,1)
+            self.goal = Goal(self, 7, 7)
+            self.ai = AI(self, 4,4)
+            self.ais.append(self.ai)
+        
+            #---Add things to Sprite List---#
+            self.thePlayer = pygame.sprite.RenderPlain()
+            self.thePlayer.add(self.player)
+            self.theGoal = pygame.sprite.RenderPlain()
+            self.theGoal.add(self.goal)
+            self.theAI = pygame.sprite.RenderPlain()
+            self.theGoal.add(self.ai)
+        
+            self.board1()
+
+        elif self.size == 17:
+            #Initialize
+            self.player = Player(self,1,1)
+            self.goal = Goal(self, 15, 15)
+            self.ai = AI(self, 4,11)
+            self.ai2 = AI(self, 12, 6) #creating more than one ai
+            self.ai3 = AI(self, 13, 12)
+            self.ais.extend((self.ai, self.ai2, self.ai3))
+        
+            #---Add things to Sprite List---#
+            self.thePlayer = pygame.sprite.RenderPlain()
+            self.thePlayer.add(self.player)
+            self.theGoal = pygame.sprite.RenderPlain()
+            self.theGoal.add(self.goal)
+            self.theAI = pygame.sprite.RenderPlain()
+            for item in self.ais:
+                self.theGoal.add(item)
+            
+            self.board2()
+
+        else:
+            #Initialize
+            self.player = Player(self,1,1)
+            self.goal = Goal(self, 25, 25)
+            self.ai = AI(self, 4, 11)
+            self.ai2 = AI(self, 11, 4)
+            self.ai3 = AI(self, 13, 22)
+            self.ai4 = AI(self, 22, 13)
+            self.ai5 = AI(self, 13, 11)
+            self.ais.extend((self.ai, self.ai2, self.ai3, self.ai4, self.ai5))
+        
+            #---Add things to Sprite List---#
+            self.thePlayer = pygame.sprite.RenderPlain()
+            self.thePlayer.add(self.player)
+            self.theGoal = pygame.sprite.RenderPlain()
+            self.theGoal.add(self.goal)
+            self.theAI = pygame.sprite.RenderPlain()
+            for item in self.ais:
+                self.theGoal.add(item)
+
+            self.board3()
+
+
+    def board3(self):
+
+        for x in range (0, self.size):
+            s = Square(x, 0, black)
+            self.boardSquares[(x,0)] = s
+            self.squares.add(s)
+            s1 = Square(x, self.size-1, black)
+            self.boardSquares[(x,self.size-1)] = s1
+            self.squares.add(s1)
+            
+        for y in range (1, self.size):
+            s = Square(0, y, black)
+            self.boardSquares[(0,y)]= s
+            self.squares.add(s)
+            s1 = Square(self.size-1, y, black)
+            self.boardSquares[(self.size-1,y)] = s1
+            self.squares.add(s1)
+   
+        l1 = [8, 11, 14, 19, 20]
+        l2 = [2, 4, 5, 6, 8, 9, 11, 12, 16, 17, 19, 22, 24]
+        l3 = [2, 6, 12, 13, 15, 16, 19, 21, 22]
+        l4 = [2, 3, 4, 6, 7, 9, 10, 18, 19, 24]
+        l5 = [4, 10, 11, 13, 14, 15, 16, 21, 22, 23, 24]
+        l6 = [2, 4, 5, 6, 8, 16, 18, 20, 21]
+        l7 = [2, 6, 8, 10, 11, 12, 13, 14, 18, 21, 23, 25]
+        l8 = [4, 8, 16, 18, 19, 23]
+        l9 = [1, 2, 3, 4, 6, 8, 10, 11, 12, 14, 15, 16, 21, 23, 24]
+        l10 = [3, 6, 16, 18, 19, 21]
+        l11 = [2, 3, 5, 6, 8, 10, 11, 12, 13, 14, 18, 21, 22, 24]
+        l12 = [5, 8, 16, 17, 18, 20, 21, 24]
+        l13 = [1, 3, 7, 8, 10, 12, 13, 14, 20, 24]
+        l14 = [3, 5, 8, 16, 18, 22]
+        l15 = [2, 3, 5, 6, 10, 11, 12, 13, 14, 16, 20, 24]
+        l16 = [6, 8, 16, 17, 19, 20, 21, 22]
+        l17 = [2, 4, 8, 10, 12, 13, 15, 16, 24, 25]
+        l18 = [4, 6, 10, 12, 18, 20, 21, 22, 25]
+        l19 = [1, 2, 6, 7, 8, 14, 16, 17, 18, 22, 23]
+        l20 = [2, 4, 8, 9, 10, 12, 13, 14, 20, 23, 24]
+        l21 = [4, 5, 6, 10, 14, 16, 18, 20, 21]
+        l22 = [1, 3, 4, 8, 12, 16, 21, 22, 24]
+        l23 = [6, 7, 8, 10, 11, 12, 14, 18, 19, 24]
+        l24 = [2, 3, 5, 6, 10, 14, 15, 17, 18, 21, 23, 24]
+        l25 = [8, 12, 20, 21]
+
+        masterlist = [l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, 
+		l11, l12, l13, l14, l15, l16, l17, l18, l19, l20, l21, l22, l23, l24, l25]
+
+        locs = []
+
+        i = 0
+        while i < len(masterlist):
+            for item in masterlist[i]:
+                sloc = (i+1, item)
+                locs.append(sloc)
+            i += 1
+	
+        for item in locs:
+            s = Square(item[0], item[1], black)
+            self.boardSquares[item] = s
+            self.squares.add(s)
+    		
+        for x in range (1, self.size):
+            for y in range (1, self.size):
+                if (x,y) not in self.boardSquares:
+                    s = Square (x, y, white)
+                    self.boardSquares[(x, y)] = s
+                    self.squares.add(s)
+                    
+    def board2(self):
+
+        for x in range (0, self.size):
+            s = Square(x, 0, black)
+            self.boardSquares[(x,0)] = s
+            self.squares.add(s)
+            s1 = Square(x, self.size-1, black)
+            self.boardSquares[(x,self.size-1)] = s1
+            self.squares.add(s1)
+            
+        for y in range (1, self.size):
+            s = Square(0, y, black)
+            self.boardSquares[(0,y)]= s
+            self.squares.add(s)
+            s1 = Square(self.size-1, y, black)
+            self.boardSquares[(self.size-1,y)] = s1
+            self.squares.add(s1)
+   
+        l1 = [8]
+        l2 = [2, 3, 4, 6, 8, 10, 11, 12, 14]
+        l3 = [2, 6, 7, 8, 10, 14]
+        l4 = [4, 12, 13, 14]
+        l5 = [2, 4, 5, 6, 8, 9, 11, 12]
+        l6 = [2, 6, 12, 14, 15]
+        l7 = [4, 8, 10]
+        l8 = [1, 3, 4, 6, 8, 10, 11, 13, 14]
+        l9 = [3, 11]
+        l10 = [2, 3, 5, 7, 8, 9, 11, 13, 14]
+        l11 = [5, 7, 11, 13]
+        l12 = [1, 3, 4, 5, 9, 15]
+        l13 = [7, 9, 10, 11, 13]
+        l14 = [2, 3, 5, 6, 7, 11, 13, 14]
+        l15 = [9]
+
+
+        masterlist = [l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, 
+		l11, l12, l13, l14, l15]
+
+        locs = []
+
+        i = 0
+        while i < len(masterlist):
+            for item in masterlist[i]:
+                sloc = (i+1, item)
+                locs.append(sloc)
+            i += 1
+	
+        for item in locs:
+            s = Square(item[0], item[1], black)
+            self.boardSquares[item] = s
+            self.squares.add(s)
+    		
+        for x in range (1, self.size):
+            for y in range (1, self.size):
+                if (x,y) not in self.boardSquares:
+                    s = Square (x, y, white)
+                    self.boardSquares[(x, y)] = s
+                    self.squares.add(s)
+    
+    def board1(self):
+        #---Populate boardSquares with Squares---#
+        
+        for x in range (0, self.size):
+            s = Square(x, 0, black)
+            self.boardSquares[(x,0)] = s
+            self.squares.add(s)
+            s1 = Square(x, self.size-1, black)
+            self.boardSquares[(x,self.size-1)] = s1
+            self.squares.add(s1)
+            
+        for y in range (1, self.size):
+            s = Square(0, y, black)
+            self.boardSquares[(0,y)]= s
+            self.squares.add(s)
+            s1 = Square(self.size-1, y, black)
+            self.boardSquares[(self.size-1,y)] = s1
+            self.squares.add(s1)
+            
+            
+        s = Square(2, 2, black)
+        self.boardSquares[(2,2)] = s
+        self.squares.add(s)
+        
+        s = Square(2, 3, black)
+        self.boardSquares[(2,3)] = s
+        self.squares.add(s)
+        
+        s = Square(2, 4, black)
+        self.boardSquares[(2,4)] = s
+        self.squares.add(s)
+        
+        s = Square(2, 6, black)
+        self.boardSquares[(2,6)] = s
+        self.squares.add(s)
+        
+        s = Square(3, 4, black)
+        self.boardSquares[(3,4)] = s
+        self.squares.add(s)
+        
+        s = Square(4, 2, black)
+        self.boardSquares[(4,2)] = s
+        self.squares.add(s)
+        
+        s = Square(4, 6, black)
+        self.boardSquares[(4,6)] = s
+        self.squares.add(s)
+        
+        s = Square(4, 7, black)
+        self.boardSquares[(4,7)] = s
+        self.squares.add(s)
+        
+        s = Square(5, 4, black)
+        self.boardSquares[(5,4)] = s
+        self.squares.add(s)
+        
+        s = Square(6, 2, black)
+        self.boardSquares[(6,2)] = s
+        self.squares.add(s)
+        
+        s = Square(6, 3, black)
+        self.boardSquares[(6,3)] = s
+        self.squares.add(s)
+        
+        s = Square(6, 4, black)
+        self.boardSquares[(6,4)] = s
+        self.squares.add(s)
+        
+        s = Square(6, 6, black)
+        self.boardSquares[(6,6)] = s
+        self.squares.add(s)
+        
+        s = Square(7, 6, black)
+        self.boardSquares[(7,6)] = s
+        self.squares.add(s)
+        
+        s = Square(7, 7, green)
+        self.boardSquares[(7,7)] = s
+        self.squares.add(s)
+        
+        for x in range (1, self.size):
+            for y in range (1, self.size):
+                if (x,y) not in self.boardSquares:
+                    s = Square (x, y, white)
+                    self.boardSquares[(x, y)] = s
+                    self.squares.add(s)
+
+    def get_square(self, x, y):
+        """
+        Given an (x, y) pair, return the Square at that location
+        """
+        return self.boardSquares.get((x,y))
+    def get_player(self):
+        return self.player
+
+class Goal(pygame.sprite.Sprite):
+    def __init__(self, board, col, row):
+        pygame.sprite.Sprite.__init__(self)
+        self.col = col
+        self.row = row
+        self.rect = (get_col_left_loc(row,WIDTH), get_row_top_loc(col,HEIGHT))
+        self.board = board
+        self.set_pic()
+        
+    def get_square(self):
+        """
+        Returns the square that the goal is  on
+        """
+        return self.board.get_square(self.col,self.row)
+    def get_loc(self):
+        return (self.col, self.row)
+        
+    def set_pic(self):
+        self.image = pygame.image.load("smile.png").convert_alpha()
+
+class Player(pygame.sprite.Sprite):
+    def __init__(self, board, col, row):
+        pygame.sprite.Sprite.__init__(self)
+        self.col = col
+        self.row = row
+        self.set_pic()
+        self.rect = (get_col_left_loc(col,WIDTH),get_row_top_loc(row,HEIGHT))
+        self.board = board
+        self.previous_angle = 1
+        self.rot_angle = 1
+        self.front = "Up"
+    def move_left(self):
+        self.col-=1
+        self.rect = (get_col_left_loc(self.col,WIDTH),get_row_top_loc(self.row,HEIGHT))
+        self.rot_angle = 2
+        self.rotation()
+        self.front = "Left"
+    def move_right(self):
+        self.col+=1
+        self.rect = (get_col_left_loc(self.col,WIDTH),get_row_top_loc(self.row,HEIGHT))
+        self.rot_angle = 0
+        self.rotation()
+        self.front = "Right"
+    def move_up(self):
+        self.row-=1
+        self.rect = (get_col_left_loc(self.col,WIDTH),get_row_top_loc(self.row,HEIGHT))
+        self.rot_angle = 1
+        self.rotation()
+        self.front = "Up"
+    def move_down(self):
+        self.row+=1
+        self.rect = (get_col_left_loc(self.col,WIDTH),get_row_top_loc(self.row,HEIGHT))
+        self.rot_angle = 3
+        self.rotation()
+        self.front = "Down"
+    def get_square(self):
+        """
+        Returns the square that the ant is currently on
+        """
+        return self.board.get_square(self.col,self.row)
+    def get_loc(self):
+        return (self.col, self.row)
+
+    def rotation(self):
+    
+        if self.rot_angle == 1 and self.previous_angle == 0 or self.rot_angle == 2 and self.previous_angle == 1 or self.rot_angle == 3 and self.previous_angle == 2 or self.rot_angle == 0 and self.previous_angle == 3:
+            self.image = pygame.transform.rotate(self.image, 90)
+        elif self.rot_angle == 0 and self.previous_angle == 1 or self.rot_angle == 1 and self.previous_angle == 2 or self.rot_angle == 2 and self.previous_angle == 3 or self.rot_angle == 3 and self.previous_angle == 0:
+            self.image = pygame.transform.rotate(self.image, -90)
+        elif self.rot_angle == 0 and self.previous_angle == 2 or self.rot_angle == 1 and self.previous_angle == 3 or self.rot_angle == 2 and self.previous_angle == 0 or self.rot_angle == 3 and self.previous_angle == 1:
+            self.image = pygame.transform.rotate(self.image, 180)
+        
+        self.previous_angle = self.rot_angle
+
+    
+    def set_pic(self):
+        """
+        Sets the picture that represents our Ant.
+        If you want to use a new picture, you'll need to change
+        this method.
+        """
+        self.image = pygame.image.load("ant_copy.png").convert_alpha()
+class AI(Player):
+    def __init__(self, board, col, row):
+        super(AI,self).__init__(board, col, row)
+        
+    def set_pic(self):
+        self.image = pygame.image.load("ladybug.png").convert_alpha()
+    def line_of_sight(self, player_loc):
+        if self.front == "Up":
+            if player_loc[0] == self.get_loc()[0] and player_loc[1] <= self.get_loc()[1]:
+                for s in range(player_loc[1], self.get_loc()[1]+1):
+                    if self.board.get_square(self.get_loc()[0], s).get_square_color() == black:
+                        return False
+                return True
+                        
+        elif self.front == "Down":
+            if player_loc[0] == self.get_loc()[0] and player_loc[1] >= self.get_loc()[1]:
+                for s in range(self.get_loc()[1], player_loc[1]+1):
+                    if self.board.get_square(self.get_loc()[0], s).get_square_color() == black:
+                        return False
+                return True
+                
+        elif self.front == "Right":
+            if player_loc[1] == self.get_loc()[1] and player_loc[0] >= self.get_loc()[0]:
+                for s in range(self.get_loc()[0], player_loc[0]+1):
+                    if self.board.get_square(s, self.get_loc()[1]).get_square_color() == black:
+                        return False
+                return True
+                
+        elif self.front == "Left":
+            if player_loc[1] == self.get_loc()[1] and player_loc[0] <= self.get_loc()[0]:
+                for s in range(player_loc[0], self.get_loc()[0]+1):
+                    if self.board.get_square(s, self.get_loc()[1]).get_square_color() == black:
+                        return False
+                return True
+if __name__ == "__main__":
+    new_game()
